@@ -1,0 +1,18 @@
+{
+  "name": "CASE 404 — Investigation Studio",
+  "short_name": "CASE 404",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#09090a",
+  "theme_color": "#0b0b0c",
+  "description": "Offline-first investigation, relationship and narrative continuity studio.",
+  "icons": [
+    {
+      "src": "./assets/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

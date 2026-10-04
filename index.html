@@ -1,0 +1,393 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#0b0b0c">
+  <meta name="description" content="CASE 404 — Investigation Studio offline-first">
+  <title>CASE 404 — Investigation Studio</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./assets/icons/icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./css/app.css">
+  <link rel="stylesheet" href="./css/premium.css">
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <aside class="sidebar" aria-label="Navegación principal">
+      <div class="brand">
+        <div class="brand-mark">404</div>
+        <div><strong>CASE 404</strong><span>INVESTIGATION STUDIO</span></div>
+      </div>
+      <nav class="nav" id="mainNav">
+        <button class="nav-btn is-active" data-view="cases">● Casos</button>
+        <button class="nav-btn" data-view="workspace" disabled>◎ Expediente</button>
+        <button class="nav-btn" data-view="settings">⚙ Ajustes</button>
+      </nav>
+      <div class="sidebar-foot">
+        <span id="storageStatus" class="status-dot">● Local</span>
+        <small>v1.2.0 · SIMPLE LINKS</small>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">OFFLINE · LOCAL-FIRST</p>
+          <h1 id="viewTitle">Case Files</h1>
+        </div>
+        <div class="top-actions">
+          <button id="importBtn" class="btn ghost">Importar</button>
+          <input id="importInput" type="file" accept=".case404,.json,application/json" hidden>
+          <button id="newCaseBtn" class="btn primary">+ Nuevo caso</button>
+        </div>
+      </header>
+
+      <section id="view-cases" class="view is-visible" aria-labelledby="viewTitle">
+        <div class="hero panel">
+          <div>
+            <p class="eyebrow">CASE MANAGEMENT</p>
+            <h2>Abre una investigación.</h2>
+            <p>Cada caso se guarda en tu navegador mediante IndexedDB. Sin cuenta, sin backend y sin enviar datos fuera del dispositivo.</p>
+          </div>
+          <div class="hero-metric"><strong id="caseCount">0</strong><span>casos</span></div>
+        </div>
+
+        <div class="toolbar panel compact">
+          <label class="search-wrap">⌕ <input id="caseSearch" type="search" placeholder="Buscar por título, ID o etiqueta…"></label>
+          <select id="caseSort" aria-label="Ordenar casos">
+            <option value="updated-desc">Actualizados recientemente</option>
+            <option value="created-desc">Creados recientemente</option>
+            <option value="title-asc">Título A–Z</option>
+          </select>
+        </div>
+
+        <div id="caseGrid" class="case-grid" aria-live="polite"></div>
+        <div id="emptyState" class="empty panel">
+          <div class="empty-icon">◉</div>
+          <h3>No hay casos todavía</h3>
+          <p>Crea el primero o importa un archivo <code>.case404</code>.</p>
+          <button class="btn primary" data-action="new-case">Crear primer caso</button>
+        </div>
+      </section>
+
+      <section id="view-workspace" class="view">
+        <div class="workspace-head panel">
+          <div>
+            <p class="eyebrow" id="activeCaseId">CASE —</p>
+            <h2 id="activeCaseTitle">Sin caso abierto</h2>
+            <p id="activeCaseSummary">Selecciona un caso desde la biblioteca.</p>
+          </div>
+          <div class="workspace-actions">
+            <button id="exportCaseBtn" class="btn ghost">Exportar .case404</button>
+            <button id="editCaseBtn" class="btn ghost">Editar</button>
+            <button id="deleteCaseBtn" class="btn danger">Eliminar</button>
+          </div>
+        </div>
+
+        <section class="board-shell panel" aria-label="Evidence Board">
+          <div class="board-heading">
+            <div>
+              <p class="eyebrow">MODULE 01 · EVIDENCE BOARD</p>
+              <h2>Investigation Board</h2>
+            </div>
+            <div class="board-stats">
+              <span><strong id="boardNodeCount">0</strong> nodos</span>
+              <span><strong id="boardEdgeCount">0</strong> conexiones</span>
+            </div>
+          </div>
+
+          <div class="board-toolbar" role="toolbar" aria-label="Herramientas del tablero">
+            <button class="tool-btn" data-board-action="add-note" title="Nueva nota">＋ Nota</button>
+            <button class="tool-btn" data-board-action="add-person" title="Nueva persona">＋ Persona</button>
+            <button class="tool-btn" data-board-action="add-place" title="Nuevo lugar">＋ Lugar</button>
+            <button class="tool-btn" data-board-action="add-evidence" title="Nueva evidencia">＋ Evidencia</button>
+            <button class="tool-btn" data-board-action="add-photo" title="Añadir fotografía">＋ Foto</button>
+            <input id="boardPhotoInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden>
+            <span class="tool-separator"></span>
+            <button class="tool-btn danger-soft" data-board-action="delete-selected" title="Eliminar selección">⌫ Eliminar</button>
+            <span class="tool-spacer"></span>
+            <button class="tool-btn" data-board-action="zoom-out" aria-label="Alejar">−</button>
+            <button id="zoomLabel" class="zoom-label" data-board-action="reset-zoom" title="Restablecer zoom">100%</button>
+            <button class="tool-btn" data-board-action="zoom-in" aria-label="Acercar">＋</button>
+            <button class="tool-btn" data-board-action="fit" title="Encajar nodos">⊙ Encajar</button>
+          </div>
+
+          <div class="board-help" id="boardHelp">Arrastra una tarjeta para moverla. Arrastra un punto rojo hasta otra tarjeta para unirlas. Clic en un hilo + Supr para eliminar.</div>
+
+          <div id="evidenceBoard" class="evidence-board" tabindex="0" aria-label="Lienzo de investigación">
+            <div id="boardGrid" class="board-grid"></div>
+            <div id="boardWorld" class="board-world">
+              <svg id="boardEdges" class="board-edges" aria-hidden="true"></svg>
+              <div id="boardNodes" class="board-nodes"></div>
+            </div>
+            <div id="boardEmpty" class="board-empty">
+              <div class="board-empty-mark">⌁</div>
+              <strong>El tablero está vacío</strong>
+              <span>Añade una nota, persona, lugar, evidencia o fotografía.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="investigation-shell panel" aria-label="Investigation Database">
+          <div class="db-heading">
+            <div><p class="eyebrow">MODULE 02 · INVESTIGATION DB</p><h2>Investigation Database</h2><p>Fichas estructuradas y enlazadas con el Evidence Board.</p></div>
+            <div class="db-total"><strong id="dbCount">0</strong><span>registros</span></div>
+          </div>
+          <div id="dbTabs" class="db-tabs" role="tablist" aria-label="Tipos de registro">
+            <button class="db-tab is-active" data-db-kind="people">● Personas <b>0</b></button>
+            <button class="db-tab" data-db-kind="places">⌖ Lugares <b>0</b></button>
+            <button class="db-tab" data-db-kind="evidence">◆ Evidencias <b>0</b></button>
+            <button class="db-tab" data-db-kind="events">◷ Eventos <b>0</b></button>
+            <button class="db-tab" data-db-kind="documents">▧ Documentos <b>0</b></button>
+          </div>
+          <div class="db-toolbar">
+            <div><span class="eyebrow">REGISTRY</span><strong id="dbKindLabel">PERSONAS</strong></div>
+            <label class="search-wrap">⌕ <input id="dbSearch" type="search" placeholder="Buscar en las fichas…"></label>
+            <button id="dbAddBtn" class="btn primary">＋ Persona</button>
+          </div>
+          <div id="dbGrid" class="db-grid" aria-live="polite"></div>
+          <div id="dbEmpty" class="db-empty"><div>◎</div><p>No hay personas registradas.</p></div>
+        </section>
+
+        <section class="timeline-shell panel" aria-label="Timeline 404">
+          <div class="timeline-heading">
+            <div><p class="eyebrow">MODULE 03 · TIMELINE 404</p><h2>Chronology Engine</h2><p>Visualiza intervalos, concurrencias, huecos y posibles conflictos temporales.</p></div>
+            <div class="timeline-stats">
+              <span><strong id="timelineEventCount">0</strong> visibles</span>
+              <span><strong id="timelineDatedCount">0</strong> fechados</span>
+              <span><strong id="timelineGapCount">0</strong> huecos</span>
+              <span><strong id="timelineAlertCount">0</strong> alertas</span>
+            </div>
+          </div>
+          <div class="timeline-toolbar">
+            <label class="search-wrap">⌕ <input id="timelineSearch" type="search" placeholder="Buscar evento, sujeto, lugar…"></label>
+            <select id="timelineCertainty" aria-label="Filtrar por certeza"><option value="all">Toda certeza</option><option value="confirmed">Confirmado</option><option value="probable">Probable</option><option value="claimed">Declarado</option><option value="unknown">Desconocido</option></select>
+            <label class="timeline-gap-control">Hueco ≥ <select id="timelineGap"><option value="0.5">30 min</option><option value="1" selected>1 h</option><option value="3">3 h</option><option value="6">6 h</option><option value="12">12 h</option><option value="24">24 h</option></select></label>
+            <div class="timeline-zoom"><button id="timelineZoomOut" class="tool-btn" title="Alejar">−</button><button id="timelineZoomReset" class="zoom-label">100%</button><button id="timelineZoomIn" class="tool-btn" title="Acercar">＋</button><button id="timelineFit" class="tool-btn">⊙ Encajar</button></div>
+            <button id="timelineAddEvent" class="btn primary">＋ Evento</button>
+          </div>
+          <div class="timeline-legend"><span><i class="legend-confirmed"></i> Confirmado</span><span><i class="legend-probable"></i> Probable</span><span><i class="legend-claimed"></i> Declarado</span><span><i class="legend-gap"></i> Hueco temporal</span></div>
+          <div id="timelineScroll" class="timeline-scroll" tabindex="0" aria-label="Cronología desplazable">
+            <div id="timelineCanvas" class="timeline-canvas"></div>
+            <div id="timelineEmpty" class="timeline-empty is-visible"><strong>Sin cronología todavía</strong><span>Añade fechas a los eventos de Investigation DB.</span></div>
+          </div>
+          <div class="timeline-analysis">
+            <div><p class="eyebrow">TEMPORAL ANALYSIS</p><h3>Alertas y contradicciones posibles</h3><p>CASE 404 señala inconsistencias mecánicas y solapamientos. No determina culpabilidad ni confirma que dos ubicaciones sean incompatibles.</p></div>
+            <div id="timelineAlerts" class="timeline-alerts"><div class="tl-alert-empty">✓ Sin conflictos temporales detectados con los datos actuales.</div></div>
+          </div>
+        </section>
+
+        <section class="theory-shell panel" aria-label="Theory Engine">
+          <div class="theory-heading">
+            <div><p class="eyebrow">MODULE 04 · THEORY ENGINE</p><h2>Hypothesis Lab</h2><p>Construye hipótesis, clasifica registros y compara cuánto soporte interno tiene cada explicación.</p></div>
+            <div class="theory-stats">
+              <span><strong id="theoryCount">0</strong> teorías</span>
+              <span><strong id="theoryActiveCount">0</strong> activas</span>
+              <span><strong id="theoryAvgSupport">—</strong> soporte medio</span>
+              <span><strong id="theoryQuestionCount">0</strong> preguntas</span>
+            </div>
+          </div>
+          <div class="theory-toolbar">
+            <label class="search-wrap">⌕ <input id="theorySearch" type="search" placeholder="Buscar hipótesis, etiquetas, registros…"></label>
+            <select id="theoryStatusFilter" aria-label="Filtrar teorías por estado"><option value="all">Todos los estados</option><option value="active">Activa</option><option value="alternative">Alternativa</option><option value="weakened">Debilitada</option><option value="discarded">Descartada</option></select>
+            <button id="theoryAddBtn" class="btn primary">＋ Hipótesis</button>
+          </div>
+          <div class="theory-disclaimer"><strong>Índice de soporte interno:</strong> peso a favor ÷ peso total clasificado. No es una probabilidad de verdad ni una conclusión automática.</div>
+          <div id="theoryGrid" class="theory-grid" aria-live="polite"></div>
+          <div id="theoryEmpty" class="theory-empty is-visible"><div>△</div><p>Crea una hipótesis y clasifica los registros que la apoyan o contradicen.</p></div>
+          <div class="theory-comparison">
+            <div><p class="eyebrow">COMPARISON MATRIX</p><h3>Comparación entre teorías</h3><p>Ordenada por soporte relativo; consulta siempre también el tamaño de la base.</p></div>
+            <div class="theory-table-wrap"><table class="theory-table"><thead><tr><th>Teoría</th><th>Estado</th><th>Soporte</th><th>A favor</th><th>En contra</th><th>Preguntas</th><th>Base</th></tr></thead><tbody id="theoryCompareBody"><tr><td colspan="7" class="theory-compare-empty">Sin teorías para comparar.</td></tr></tbody></table></div>
+          </div>
+        </section>
+
+        <section class="graph-shell panel" aria-label="Connection Graph">
+          <div class="graph-heading">
+            <div><p class="eyebrow">MODULE 05 · CONNECTION GRAPH</p><h2>Relationship Network</h2><p>Relaciones derivadas del expediente: tablero, teorías, eventos y referencias explícitas.</p></div>
+            <div class="graph-stats">
+              <span><strong id="graphNodeCount">0</strong> nodos</span>
+              <span><strong id="graphEdgeCount">0</strong> relaciones</span>
+              <span><strong id="graphComponentCount">0</strong> grupos</span>
+              <span><strong id="graphIndirectCount">0</strong> indirectas</span>
+            </div>
+          </div>
+          <div class="graph-toolbar">
+            <label class="search-wrap">⌕ <input id="graphSearch" type="search" placeholder="Buscar nodo, referencia o etiqueta…"></label>
+            <select id="graphRelationFilter" aria-label="Filtrar tipo de relación">
+              <option value="all">Todas las relaciones</option><option value="board">Tablero</option><option value="theory_support">Apoya teoría</option><option value="theory_against">Contradice teoría</option><option value="event_subject">Evento ↔ persona</option><option value="event_place">Evento ↔ lugar</option><option value="reference">Referencia explícita</option><option value="tag">Etiqueta común</option>
+            </select>
+            <label class="graph-tag-toggle"><input id="graphTagLinks" type="checkbox"> Coincidencias por etiqueta</label>
+            <div class="graph-zoom"><button id="graphZoomOut" class="tool-btn">−</button><button id="graphZoomReset" class="zoom-label">100%</button><button id="graphZoomIn" class="tool-btn">＋</button><button id="graphFit" class="tool-btn">⊙ Encajar</button></div>
+          </div>
+          <div id="graphKindFilters" class="graph-kind-filters" aria-label="Filtrar tipos de nodo">
+            <label><input type="checkbox" data-graph-kind="people" checked> ● Personas</label><label><input type="checkbox" data-graph-kind="places" checked> ⌖ Lugares</label><label><input type="checkbox" data-graph-kind="evidence" checked> ◆ Evidencias</label><label><input type="checkbox" data-graph-kind="events" checked> ◷ Eventos</label><label><input type="checkbox" data-graph-kind="documents" checked> ▧ Documentos</label><label><input type="checkbox" data-graph-kind="theories" checked> △ Teorías</label>
+          </div>
+          <div class="graph-canvas-wrap">
+            <svg id="graphSvg" class="graph-svg" viewBox="0 0 1200 720" tabindex="0" aria-label="Grafo de relaciones"><g id="graphWorld"><g id="graphEdges"></g><g id="graphNodes"></g></g></svg>
+            <div id="graphEmpty" class="graph-empty"><strong>Sin nodos visibles</strong><span>Añade fichas o revisa los filtros.</span></div>
+          </div>
+          <div class="graph-path-lab">
+            <div><p class="eyebrow">INDIRECT CONNECTIONS</p><h3>Buscador de rutas</h3><p>Encuentra la cadena más corta entre dos registros usando solo las relaciones actualmente visibles.</p></div>
+            <div class="graph-path-controls"><select id="graphPathFrom"><option value="">Origen…</option></select><span>→</span><select id="graphPathTo"><option value="">Destino…</option></select><button id="graphFindPath" class="btn primary">Buscar ruta</button><button id="graphSuggestPath" class="btn ghost">Sugerir indirecta</button><button id="graphClearPath" class="btn ghost">Limpiar</button></div>
+            <div id="graphPathResult" class="graph-path-result"><span>Selecciona dos nodos o pide una sugerencia para buscar la ruta más corta.</span></div>
+          </div>
+          <div class="graph-note"><strong>Cómo se generan:</strong> conexiones manuales del Evidence Board, vínculos de Theory Engine, sujetos/lugares reconocidos en eventos y referencias explícitas como <code>E-004</code>. Las coincidencias por etiqueta son opcionales porque son una inferencia débil.</div>
+        </section>
+
+        <section class="writer-shell panel" aria-label="Writer Mode">
+          <div class="writer-heading">
+            <div><p class="eyebrow">MODULE 06 · WRITER MODE</p><h2>Narrative Continuity Studio</h2><p>Capítulos, escenas, pistas, secretos y conocimiento de personajes conectados a la investigación.</p></div>
+            <div class="writer-stats">
+              <span><strong id="writerChapterCount">0</strong> capítulos</span>
+              <span><strong id="writerSceneCount">0</strong> escenas</span>
+              <span><strong id="writerClueCount">0</strong> pistas</span>
+              <span><strong id="writerIssueCount">0</strong> alertas</span>
+            </div>
+          </div>
+          <div id="writerTabs" class="writer-tabs" role="tablist" aria-label="Tipos narrativos">
+            <button class="writer-tab is-active" data-writer-tab="chapters">▤ Capítulos <b>0</b></button>
+            <button class="writer-tab" data-writer-tab="scenes">◫ Escenas <b>0</b></button>
+            <button class="writer-tab" data-writer-tab="clues">◇ Pistas <b>0</b></button>
+            <button class="writer-tab" data-writer-tab="secrets">◆ Secretos <b>0</b></button>
+            <button class="writer-tab" data-writer-tab="continuity">⚠ Continuidad</button>
+          </div>
+          <div class="writer-toolbar">
+            <div><span class="eyebrow">NARRATIVE REGISTRY</span><strong id="writerRegistryLabel">CAPÍTULOS</strong></div>
+            <label class="search-wrap">⌕ <input id="writerSearch" type="search" placeholder="Buscar en Writer Mode…"></label>
+            <button id="writerAddBtn" class="btn primary">＋ Capítulo</button>
+          </div>
+          <div id="writerGrid" class="writer-grid" aria-live="polite"></div>
+          <div id="writerEmpty" class="writer-empty"><div>✎</div><p>No hay capítulos todavía.</p></div>
+          <div id="writerContinuity" class="writer-continuity" hidden></div>
+          <div class="writer-note"><strong>Continuity Engine:</strong> las alertas son comprobaciones mecánicas de orden y referencias. Una advertencia no implica que la decisión narrativa sea incorrecta; puede ser deliberada.</div>
+        </section>
+
+        <section class="reports-shell panel" aria-label="Reports 404">
+          <div class="reports-heading">
+            <div><p class="eyebrow">MODULE 07 · REPORTS</p><h2>Case Report Studio</h2><p>Genera un expediente legible, imprimible y portable a partir de los datos vivos del caso.</p></div>
+            <div class="reports-stats"><span><strong id="reportSectionCount">10</strong> secciones</span><span><strong id="reportPageHint">~1 pág.</strong> estimadas</span></div>
+          </div>
+          <div class="reports-toolbar">
+            <label>Plantilla <select id="reportPreset"><option value="executive">Ejecutivo</option><option value="full" selected>Expediente completo</option><option value="narrative">Narrativo</option></select></label>
+            <button id="reportRefresh" class="btn ghost">↻ Actualizar</button>
+            <span class="tool-spacer"></span>
+            <button id="reportExportMd" class="btn ghost">Exportar .md</button>
+            <button id="reportExportHtml" class="btn ghost">Exportar HTML</button>
+            <button id="reportPrint" class="btn primary">Imprimir / PDF</button>
+          </div>
+          <div id="reportSections" class="report-section-switches">
+            <label><input type="checkbox" data-report-section="summary" checked> Resumen</label><label><input type="checkbox" data-report-section="timeline" checked> Cronología</label><label><input type="checkbox" data-report-section="people" checked> Personas</label><label><input type="checkbox" data-report-section="places" checked> Lugares</label><label><input type="checkbox" data-report-section="evidence" checked> Evidencias</label><label><input type="checkbox" data-report-section="documents" checked> Documentos</label><label><input type="checkbox" data-report-section="theories" checked> Teorías</label><label><input type="checkbox" data-report-section="relations" checked> Relaciones</label><label><input type="checkbox" data-report-section="writer" checked> Writer</label><label><input type="checkbox" data-report-section="continuity" checked> Continuidad</label>
+          </div>
+          <div class="report-preview-wrap"><div id="reportPreview" class="report-preview"></div></div>
+          <div class="reports-note"><strong>PDF:</strong> usa “Imprimir / PDF” y selecciona “Guardar como PDF” en el navegador. CASE no envía el expediente a ningún servicio externo.</div>
+        </section>
+      </section>
+
+      <section id="view-settings" class="view">
+        <div class="appearance-panel panel">
+          <div class="appearance-head"><div><p class="eyebrow">PHASE 09 · PREMIUM UI</p><h2>Apariencia</h2><p>La preferencia se guarda solo en este navegador. No modifica los datos de tus casos.</p></div><div class="appearance-current"><span>SKIN ACTIVA</span><strong id="activeThemeLabel">NOIR 404</strong></div></div>
+          <div id="themeGrid" class="theme-grid" role="radiogroup" aria-label="Skins de CASE 404">
+            <button class="theme-card is-active" data-theme-choice="noir" role="radio" aria-checked="true"><span class="theme-swatch swatch-noir"><i></i><i></i><i></i></span><strong>NOIR 404</strong><small>Carbón, rojo evidencia y papel.</small></button>
+            <button class="theme-card" data-theme-choice="cold" role="radio" aria-checked="false"><span class="theme-swatch swatch-cold"><i></i><i></i><i></i></span><strong>COLD CASE</strong><small>Azul acero, archivo nocturno.</small></button>
+            <button class="theme-card" data-theme-choice="police" role="radio" aria-checked="false"><span class="theme-swatch swatch-police"><i></i><i></i><i></i></span><strong>POLICE ARCHIVE</strong><small>Azul institucional y ámbar.</small></button>
+            <button class="theme-card" data-theme-choice="cyber" role="radio" aria-checked="false"><span class="theme-swatch swatch-cyber"><i></i><i></i><i></i></span><strong>CYBER INVESTIGATION</strong><small>Negro, cian y señales digitales.</small></button>
+            <button class="theme-card" data-theme-choice="archive" role="radio" aria-checked="false"><span class="theme-swatch swatch-archive"><i></i><i></i><i></i></span><strong>CLASSIFIED</strong><small>Oliva, cartón y sellos de archivo.</small></button>
+            <button class="theme-card" data-theme-choice="minimal" role="radio" aria-checked="false"><span class="theme-swatch swatch-minimal"><i></i><i></i><i></i></span><strong>MINIMAL DARK</strong><small>Gris neutro y máximo contraste.</small></button>
+          </div>
+          <div class="appearance-options">
+            <label>Densidad<select id="uiDensity"><option value="comfortable">Cómoda</option><option value="compact">Compacta</option></select></label>
+            <label>Movimiento<select id="uiMotion"><option value="system">Según sistema</option><option value="full">Completo</option><option value="reduced">Reducido</option></select></label>
+            <label>Tablero<select id="boardSurface"><option value="dark">Oscuro técnico</option><option value="cork">Corcho / expediente</option><option value="grid">Rejilla forense</option></select></label>
+            <button id="resetAppearance" class="btn ghost" type="button">Restablecer apariencia</button>
+          </div>
+        </div>
+        <div class="settings-grid settings-secondary">
+          <article class="panel"><p class="eyebrow">STORAGE</p><h2>Datos locales</h2><p>CASE 404 usa IndexedDB. Puedes exportar cada investigación como archivo portable.</p><button id="exportAllBtn" class="btn ghost">Exportar todos los casos</button></article>
+          <article class="panel"><p class="eyebrow">DANGER ZONE</p><h2>Restablecer</h2><p>Elimina todos los casos guardados en este navegador.</p><button id="resetDbBtn" class="btn danger">Borrar base local</button></article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="caseDialog" class="dialog">
+    <form id="caseForm" method="dialog">
+      <div class="dialog-head"><div><p class="eyebrow" id="dialogMode">NEW CASE</p><h2>Ficha del caso</h2></div><button type="button" class="icon-btn" data-dialog-close aria-label="Cerrar">×</button></div>
+      <input type="hidden" id="caseUuid">
+      <label>Título<input id="caseTitle" required maxlength="90" placeholder="Ej. The Black Hollow"></label>
+      <label>Resumen<textarea id="caseSummary" maxlength="500" rows="4" placeholder="Descripción breve de la investigación…"></textarea></label>
+      <div class="form-row">
+        <label>Estado<select id="caseStatus"><option value="active">Activo</option><option value="cold">Cold case</option><option value="closed">Cerrado</option><option value="archived">Archivado</option></select></label>
+        <label>Prioridad<select id="casePriority"><option value="normal">Normal</option><option value="high">Alta</option><option value="critical">Crítica</option><option value="low">Baja</option></select></label>
+      </div>
+      <label>Etiquetas<input id="caseTags" maxlength="180" placeholder="desaparición, hotel, costa"></label>
+      <div class="dialog-actions"><button type="button" class="btn ghost" data-dialog-close>Cancelar</button><button id="saveCaseBtn" class="btn primary" value="default">Guardar caso</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="nodeDialog" class="dialog node-dialog">
+    <form id="nodeForm" method="dialog">
+      <div class="dialog-head"><div><p class="eyebrow" id="nodeDialogType">BOARD NODE</p><h2>Editar tarjeta</h2></div><button type="button" class="icon-btn" data-dialog-close aria-label="Cerrar">×</button></div>
+      <input type="hidden" id="nodeId">
+      <label>Título<input id="nodeTitle" required maxlength="100" placeholder="Título de la tarjeta"></label>
+      <label>Contenido<textarea id="nodeText" maxlength="1000" rows="6" placeholder="Notas, observaciones o detalles…"></textarea></label>
+      <label>Etiqueta / referencia<input id="nodeMeta" maxlength="100" placeholder="Ej. E-014, 22:37, Testigo 03"></label>
+      <div class="dialog-actions"><button type="button" class="btn ghost" data-dialog-close>Cancelar</button><button class="btn primary" value="default">Guardar tarjeta</button></div>
+    </form>
+  </dialog>
+
+
+  <dialog id="recordDialog" class="dialog record-dialog">
+    <form id="recordForm" method="dialog">
+      <div class="dialog-head"><div><p class="eyebrow" id="recordDialogMode">NEW RECORD</p><h2 id="recordDialogTitle">Ficha</h2><span id="recordRef" class="record-ref">—</span></div><button type="button" class="icon-btn" data-dialog-close aria-label="Cerrar">×</button></div>
+      <input type="hidden" id="recordKind"><input type="hidden" id="recordId">
+      <div id="recordFields" class="record-fields"></div>
+      <div class="dialog-actions split"><button id="recordDeleteBtn" type="button" class="btn danger" hidden>Eliminar ficha</button><span></span><button type="button" class="btn ghost" data-dialog-close>Cancelar</button><button class="btn primary" value="default">Guardar ficha</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="theoryDialog" class="dialog theory-dialog">
+    <form id="theoryForm" method="dialog">
+      <div class="dialog-head"><div><p class="eyebrow" id="theoryDialogMode">NEW THEORY</p><h2 id="theoryDialogTitle">Nueva hipótesis</h2><span id="theoryRef" class="record-ref">T-001</span></div><button type="button" class="icon-btn" data-dialog-close aria-label="Cerrar">×</button></div>
+      <input type="hidden" id="theoryId">
+      <div class="theory-form-grid">
+        <label>Título<input id="theoryTitle" required maxlength="120" placeholder="Ej. Marc conocía el túnel"></label>
+        <label>Estado<select id="theoryStatus"><option value="active">Activa</option><option value="alternative">Alternativa</option><option value="weakened">Debilitada</option><option value="discarded">Descartada</option></select></label>
+        <label class="field-span">Enunciado<textarea id="theoryStatement" rows="4" maxlength="1800" placeholder="Formula la hipótesis de forma falsable y concreta…"></textarea></label>
+        <label class="field-span">Notas / razonamiento<textarea id="theoryNotes" rows="3" maxlength="1800" placeholder="Contexto, supuestos, próximos pasos…"></textarea></label>
+        <label class="field-span">Etiquetas<input id="theoryTags" maxlength="220" placeholder="túnel, acceso, móvil"></label>
+      </div>
+
+      <section id="theoryRelations" class="theory-relations">
+        <div class="theory-rel-head"><div><p class="eyebrow">EVIDENCE LINKS</p><h3>Registros clasificados</h3></div><div class="theory-live-score"><strong id="theoryDraftScore">—</strong><span id="theoryDraftBase">Sin base clasificada</span></div></div>
+        <div class="theory-rel-columns">
+          <div class="theory-rel-panel supports"><h4>＋ A favor</h4><div class="theory-picker"><select id="theorySupportPicker"><option value="">Selecciona un registro…</option></select><button id="theoryAddSupport" type="button" class="btn ghost">Añadir</button></div><div id="theorySupportLinks" class="theory-link-list"></div></div>
+          <div class="theory-rel-panel against"><h4>− En contra</h4><div class="theory-picker"><select id="theoryAgainstPicker"><option value="">Selecciona un registro…</option></select><button id="theoryAddAgainst" type="button" class="btn ghost">Añadir</button></div><div id="theoryAgainstLinks" class="theory-link-list"></div></div>
+        </div>
+      </section>
+
+      <div class="theory-form-grid theory-text-lists">
+        <label>Preguntas abiertas <textarea id="theoryQuestions" rows="5" maxlength="2400" placeholder="Una pregunta por línea"></textarea><small>Se cuentan como abiertas mientras permanezcan en esta lista.</small></label>
+        <label>Contradicciones / debilidades <textarea id="theoryContradictions" rows="5" maxlength="2400" placeholder="Una contradicción por línea"></textarea><small>Observaciones manuales distintas de los registros clasificados en contra.</small></label>
+      </div>
+      <div class="dialog-actions split"><button id="theoryDeleteBtn" type="button" class="btn danger" hidden>Eliminar teoría</button><span></span><button type="button" class="btn ghost" data-dialog-close>Cancelar</button><button class="btn primary" value="default">Guardar teoría</button></div>
+    </form>
+  </dialog>
+
+
+  <dialog id="writerDialog" class="dialog writer-dialog">
+    <form id="writerForm" method="dialog">
+      <div class="dialog-head"><div><p class="eyebrow" id="writerDialogMode">NEW WRITER RECORD</p><h2 id="writerDialogTitle">Registro narrativo</h2><span id="writerRef" class="record-ref">—</span></div><button type="button" class="icon-btn" data-dialog-close aria-label="Cerrar">×</button></div>
+      <input type="hidden" id="writerKind"><input type="hidden" id="writerId">
+      <div id="writerFields"></div>
+      <div class="dialog-actions split"><button id="writerDeleteBtn" type="button" class="btn danger" hidden>Eliminar registro</button><span></span><button type="button" class="btn ghost" data-dialog-close>Cancelar</button><button class="btn primary" value="default">Guardar</button></div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <template id="reportExportStyles">
+  body{margin:0;background:#fff;color:#171717;font:14px/1.5 Arial,sans-serif}.case-report{max-width:1040px;margin:auto;padding:38px}.report-cover{padding:48px 0 38px;border-bottom:3px solid #111}.report-classification,.report-case-ref,.report-section-head>span{font:700 11px monospace;letter-spacing:.12em;text-transform:uppercase;color:#8b3f36}.report-cover h1{font-size:38px;margin:8px 0}.report-summary-lead{font-size:16px;max-width:760px;color:#444}.report-cover-meta,.report-kpis{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px}.report-cover-meta span{font-size:11px;color:#666}.report-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}.report-tags span{padding:3px 7px;border:1px solid #bbb;border-radius:10px;font-size:10px}.report-section{padding:30px 0;border-bottom:1px solid #bbb}.report-section-head{display:flex;gap:14px;align-items:start;margin-bottom:18px}.report-section-head h2{margin:0;font-size:23px}.report-section-head p{margin:3px 0;color:#666}.report-kpis{display:grid;grid-template-columns:repeat(6,1fr)}.report-kpis div{border:1px solid #bbb;padding:12px}.report-kpis b{display:block;font-size:25px}.report-kpis span{font-size:10px;text-transform:uppercase}.report-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 16px}.report-facts div{display:grid;grid-template-columns:120px 1fr;border-bottom:1px dotted #bbb;padding:4px 0}.report-facts dt{font-size:10px;text-transform:uppercase;color:#666}.report-facts dd{margin:0}.report-timeline article{display:grid;grid-template-columns:190px 1fr;gap:16px;padding:12px 0;border-bottom:1px solid #ddd}.report-timeline time{font:700 11px monospace}.report-records{display:grid;grid-template-columns:1fr 1fr;gap:12px}.report-record,.report-theory,.report-chapters article,.report-issues article{border:1px solid #bbb;padding:14px;break-inside:avoid}.report-record-head{display:flex;gap:10px;align-items:baseline}.report-record-head h3{margin:0}.report-record-head span{font:700 10px monospace;color:#8b3f36}.report-prose{white-space:pre-wrap;color:#333}.report-theory-head{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}.report-theory-head h3{margin:0}.report-theory-head>b{font-size:22px}.report-columns{display:grid;grid-template-columns:1fr 1fr;gap:16px}.report-table{width:100%;border-collapse:collapse;font-size:11px}.report-table th,.report-table td{padding:7px;border:1px solid #bbb;text-align:left;vertical-align:top}.report-chapters{display:grid;grid-template-columns:1fr 1fr;gap:10px}.report-clean{padding:22px;border:1px solid #7b9b7b;background:#f4faf4}.severity-error{border-left:4px solid #a33!important}.severity-warning{border-left:4px solid #b97d22!important}.report-footer{display:flex;justify-content:space-between;gap:10px;padding:22px 0;color:#666;font-size:10px}.report-empty{color:#777;font-style:italic}@media print{.case-report{max-width:none;padding:0}.page-break{break-before:page}.report-section{break-inside:auto}}@media(max-width:700px){.case-report{padding:20px}.report-kpis{grid-template-columns:repeat(2,1fr)}.report-records,.report-chapters,.report-columns,.report-facts{grid-template-columns:1fr}.report-timeline article{grid-template-columns:1fr}}
+  </template>
+  <script src="./js/app.bundle.js"></script>
+</body>
+</html>
